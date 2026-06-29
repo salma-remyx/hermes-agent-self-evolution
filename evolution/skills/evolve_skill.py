@@ -29,6 +29,10 @@ from evolution.skills.skill_module import (
     find_skill,
     reassemble_skill,
 )
+from evolution.skills.error_trajectory import (
+    analyze_failure_trajectory,
+    extract_failures_from_holdout,
+)
 
 console = Console()
 
@@ -210,20 +214,56 @@ def evolve(
 
     baseline_scores = []
     evolved_scores = []
+    baseline_preds = []
+    evolved_preds = []
     for ex in holdout_examples:
         # Score baseline
         with dspy.context(lm=lm):
             baseline_pred = baseline_module(task_input=ex.task_input)
             baseline_score = skill_fitness_metric(ex, baseline_pred)
             baseline_scores.append(baseline_score)
+            baseline_preds.append(baseline_pred)
 
             evolved_pred = optimized_module(task_input=ex.task_input)
             evolved_score = skill_fitness_metric(ex, evolved_pred)
             evolved_scores.append(evolved_score)
+            evolved_preds.append(evolved_pred)
 
     avg_baseline = sum(baseline_scores) / max(1, len(baseline_scores))
     avg_evolved = sum(evolved_scores) / max(1, len(evolved_scores))
     improvement = avg_evolved - avg_baseline
+
+    # ── 8.5. Analyze failures and generate reflective trajectories ────────
+    console.print(f"\n[bold]Analyzing failures for micro-reflective trajectories[/bold]")
+
+    failures = extract_failures_from_holdout(
+        holdout_examples=holdout_examples,
+        baseline_scores=baseline_scores,
+        evolved_scores=evolved_scores,
+        baseline_preds=baseline_preds,
+        evolved_preds=evolved_preds,
+        threshold=0.5,
+    )
+
+    trajectories = []
+    if failures:
+        console.print(f"  Found {len(failures)} failure(s) - generating reflective corrections")
+
+        for failure in failures[:5]:  # Limit to first 5 for efficiency
+            # Generate reflective trajectory for evolved skill failures
+            if failure["failure_type"] in ("evolved_failure", "regression"):
+                trajectory = analyze_failure_trajectory(
+                    task_input=failure["task_input"],
+                    agent_output=failure["evolved_output"],
+                    expected_behavior=failure["expected_behavior"],
+                    skill_text=evolved_body,
+                    config=config,
+                )
+                trajectories.append(trajectory.to_training_example())
+
+        console.print(f"  Generated {len(trajectories)} reflective trajectory(s)")
+    else:
+        console.print(f"  No failures detected on holdout set")
 
     # ── 9. Report results ───────────────────────────────────────────────
     table = Table(title="Evolution Results")
@@ -281,6 +321,14 @@ def evolve(
         "constraints_passed": all_pass,
     }
     (output_dir / "metrics.json").write_text(json.dumps(metrics, indent=2))
+
+    # Save reflective trajectories for learning from mistakes
+    if trajectories:
+        metrics["failures_analyzed"] = len(trajectories)
+        (output_dir / "reflective_trajectories.json").write_text(
+            json.dumps(trajectories, indent=2)
+        )
+        console.print(f"  Saved {len(trajectories)} reflective trajectory(s)")
 
     console.print(f"\n  Output saved to {output_dir}/")
 
