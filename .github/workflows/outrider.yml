@@ -5,11 +5,13 @@ name: Outrider
 # Claude-Code-scaffolded integration.
 #
 # Secrets needed (set in Settings → Secrets and variables → Actions):
-#   REMYX_API_KEY        — engine.remyx.ai token
-#   ANTHROPIC_API_KEY — model-provider token (e.g. Anthropic, for the agent)
+#   REMYX_API_KEY — engine.remyx.ai token
+#   Z_AI_KEY      — z.ai GLM backend key (fed to the agent as ANTHROPIC_API_KEY)
 #
-# The workflow's built-in GITHUB_TOKEN handles PR / Issue creation on
-# this repo — no PAT required since the action runs in the target.
+# TESTING (PR #73): the action is pinned to the salma/REMYX-151-pluggable-base-url
+# branch and routes the Claude Code subprocess at z.ai's Anthropic-compatible
+# endpoint via `model-base-url`. PRs are authored by remyx-ai[bot] using the
+# engine-minted installation token below.
 
 on:
   schedule:
@@ -27,7 +29,9 @@ jobs:
       issues: write
     env:
       REMYX_API_KEY: ${{ secrets.REMYX_API_KEY }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # The Claude Code subprocess reads its key from ANTHROPIC_API_KEY; we map
+      # it from the Z_AI_KEY secret (the z.ai backend key) — no Anthropic key.
+      ANTHROPIC_API_KEY: ${{ secrets.Z_AI_KEY }}
     steps:
       # Mint a remyx[bot] token from Remyx so the PR / Issue is authored by
       # the Remyx GitHub App (not github-actions[bot]). The App private key
@@ -38,14 +42,18 @@ jobs:
         id: remyx-bot
         shell: bash
         run: |
-          token="$(curl -sf -X POST             -H "Authorization: Bearer ${{ secrets.REMYX_API_KEY }}"             -H "Content-Type: application/json"             -d "{\"repo\": \"${{ github.repository }}\"}"             "https://engine.remyx.ai/api/v1.0/github/installation-token"             | python3 -c "import sys, json; print(json.load(sys.stdin).get('token', ''))")" || token=""
+          token="$(curl -sf -X POST -H "Authorization: Bearer ${{ secrets.REMYX_API_KEY }}" -H "Content-Type: application/json" -d "{\"repo\": \"${{ github.repository }}\"}" "https://engine.remyx.ai/api/v1.0/github/installation-token" | python3 -c "import sys, json; print(json.load(sys.stdin).get('token', ''))")" || token=""
           echo "::add-mask::$token"
           echo "token=$token" >> "$GITHUB_OUTPUT"
-      - uses: remyxai/outrider@v1
+      - uses: remyxai/outrider@salma/REMYX-151-pluggable-base-url
         with:
           interest-id: 648c9672-1f4f-43e1-852b-157448da45b8
           # remyx[bot] token (empty → action falls back to GITHUB_TOKEN).
           github-token: ${{ steps.remyx-bot.outputs.token }}
+          # Route the Claude Code subprocess at z.ai's Anthropic-compatible
+          # endpoint (the PR #73 feature under test). ANTHROPIC_API_KEY (mapped
+          # from Z_AI_KEY above) holds the z.ai backend key.
+          model-base-url: https://api.z.ai/api/anthropic
           # Disable the per-repo rate-limit window so manual and scheduled
           # runs always evaluate the latest recommendation. Without this the
           # default 7-day floor short-circuits runs at skipped_rate_limit
