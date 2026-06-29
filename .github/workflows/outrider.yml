@@ -10,6 +10,11 @@ name: Outrider
 # Plan. ANTHROPIC_API_KEY holds the z.ai key, not an Anthropic key.
 
 on:
+  # TESTING: push trigger so the workflow runs from this branch without
+  # merging to main. workflow_dispatch/schedule only register once the file
+  # is on the default branch; push runs from the ref it's pushed to.
+  push:
+    branches: [install-outrider]
   schedule:
     - cron: '0 14 * * 1'   # Mondays 14:00 UTC; pick any cadence
   workflow_dispatch:
