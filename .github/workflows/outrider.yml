@@ -4,6 +4,10 @@ name: Outrider
 # Weekly scout: queries engine.remyx.ai for a paper recommendation against
 # this repo's ResearchInterest, then opens a draft PR wiring it in.
 #   https://github.com/remyxai/outrider
+#
+# TESTING: pinned to PR #73 (salma/REMYX-151-pluggable-base-url) to exercise
+# the new `model-base-url` input, routing Claude Code at z.ai's GLM Coding
+# Plan. ANTHROPIC_API_KEY holds the z.ai key, not an Anthropic key.
 
 on:
   schedule:
@@ -22,9 +26,13 @@ jobs:
       REMYX_API_KEY: ${{ secrets.REMYX_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
-      - uses: remyxai/outrider@v1
+      - uses: remyxai/outrider@salma/REMYX-151-pluggable-base-url
         with:
           interest-id: 648c9672-1f4f-43e1-852b-157448da45b8
+          # Route the Claude Code subprocess at z.ai's Anthropic-compatible
+          # endpoint (the PR #73 feature under test). ANTHROPIC_API_KEY must
+          # hold the z.ai backend key.
+          model-base-url: https://api.z.ai/anthropic
           # Minimum days between recommendation PRs on this repo. '0' lets
           # every scheduled or manually-triggered run open a PR; raise it
           # (e.g. '7') to cap how often Outrider posts.
