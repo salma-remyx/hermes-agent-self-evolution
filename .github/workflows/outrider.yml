@@ -32,7 +32,7 @@ jobs:
           # Route the Claude Code subprocess at z.ai's Anthropic-compatible
           # endpoint (the PR #73 feature under test). ANTHROPIC_API_KEY must
           # hold the z.ai backend key.
-          model-base-url: https://api.z.ai/anthropic
+          model-base-url: https://api.z.ai/api/anthropic
           # Minimum days between recommendation PRs on this repo. '0' lets
           # every scheduled or manually-triggered run open a PR; raise it
           # (e.g. '7') to cap how often Outrider posts.
