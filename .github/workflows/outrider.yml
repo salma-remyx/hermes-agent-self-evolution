@@ -54,6 +54,10 @@ jobs:
           # endpoint (the PR #73 feature under test). ANTHROPIC_API_KEY (mapped
           # from Z_AI_KEY above) holds the z.ai backend key.
           model-base-url: https://api.z.ai/api/anthropic
+          # Pin the exact paper (TAPO self-distillation) for a reproducible
+          # re-run — skips the LLM selection pass. Must match the full
+          # arxiv_id incl. version as it appears in the candidate pool.
+          pin-arxiv: '2509.17393v2'
           # Disable the per-repo rate-limit window so manual and scheduled
           # runs always evaluate the latest recommendation. Without this the
           # default 7-day floor short-circuits runs at skipped_rate_limit
