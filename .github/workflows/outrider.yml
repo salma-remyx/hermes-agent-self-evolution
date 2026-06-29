@@ -7,7 +7,9 @@ name: Outrider
 #
 # TESTING: pinned to PR #73 (salma/REMYX-151-pluggable-base-url) to exercise
 # the new `model-base-url` input, routing Claude Code at z.ai's GLM Coding
-# Plan. ANTHROPIC_API_KEY holds the z.ai key, not an Anthropic key.
+# Plan. The Claude Code subprocess reads its key from ANTHROPIC_API_KEY,
+# which we map from the Z_AI_KEY secret (the z.ai backend key) — no
+# Anthropic key is involved.
 
 on:
   # TESTING: push trigger so the workflow runs from this branch without
@@ -29,7 +31,7 @@ jobs:
       issues: write
     env:
       REMYX_API_KEY: ${{ secrets.REMYX_API_KEY }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.Z_AI_KEY }}   # z.ai GLM backend key
     steps:
       - uses: remyxai/outrider@salma/REMYX-151-pluggable-base-url
         with:
